@@ -14,8 +14,8 @@ def get_args():
     parser = argparse.ArgumentParser(description='xyz-tile download tool')
     parser.add_argument('tileurl', help='xyz-tile url')
     parser.add_argument('output_dir', help='output dir')
-    parser.add_argument(
-        '--extent', help='min_lon min_lat max_lon max_lat, whitespace delimited', nargs=4)
+    parser.add_argument('--extent',
+                        help='min_lon min_lat max_lon max_lat, whitespace delimited', nargs=4)
     parser.add_argument('--geojson')
     parser.add_argument('--minzoom', default=0)
     parser.add_argument('--maxzoom', default=16)
@@ -35,25 +35,28 @@ def main():
     extent = tuple(map(float, args.extent))
     geometry = get_geometry_as_3857(extent)
     all_tiles = tuple(itertools.chain.from_iterable((get_tiles_generator(
-        geometry, zoom) for zoom in range(int(args.minzoom), int(args.maxzoom)))))
+        geometry, zoom) for zoom in range(int(args.minzoom), int(args.maxzoom) + 1))))
 
     for tile in tqdm.tqdm(all_tiles):
+        ext = args.tileurl.split(".")[-1]
         write_dir = os.path.join(args.output_dir, str(tile[2]), str(tile[0]))
+        write_filepath = os.path.join(write_dir, str(tile[1]) + "." + ext)
+
+        if os.path.exists(write_filepath) and args.overwrite == False:
+            continue
+
         os.makedirs(write_dir, exist_ok=True)
+
         url = args.tileurl.replace(
             r"{x}", str(tile[0])).replace(
             r"{y}", str(tile[1])).replace(
             r"{z}", str(tile[2]))
         data = requests.get(url).content
-        ext = url.split(".")[-1]
-        filepath = os.path.join(write_dir, str(tile[1]) + "." + ext)
 
-        if os.path.exists(filepath) and args.overwrite == False:
-            continue
-
-        with open(filepath, mode='wb') as f:
-            time.sleep(args.interval / 1000)
+        with open(write_filepath, mode='wb') as f:
             f.write(data)
+
+        time.sleep(int(args.interval) / 1000)
 
 
 def get_tiles_generator(geometry: dict, zoomlevel: int):
