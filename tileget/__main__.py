@@ -81,14 +81,15 @@ def main():
             try:
                 data = urllib.request.urlopen(url, timeout=args["timeout"])
                 break
-            except socket.timeout:
-                print("timeout, retrying... :" + url)
             except urllib.error.HTTPError as e:
-                print(e.code + " error, skipping... :" + url)
+                print(str(e.code) + " error, skipping... :" + url)
                 break
             except Exception as e:
-                print(e.args + " skipping... :" + url)
-                break
+                if str(e.args) == "(timeout('_ssl.c:1091: The handshake operation timed out'),)":
+                    print("timeout, retrying... :" + url)
+                else:
+                    print(str(e.args) + " skipping... :" + url)
+                    break
 
         if data is not None:
             with open(write_filepath, mode='wb') as f:
@@ -99,8 +100,10 @@ def main():
             print(str(idx + 1) + "/" + str(len(all_tiles)))
 
     with ThreadPoolExecutor(max_workers=args["parallel"]) as executor:
-        for idx, tile in enumerate(all_tiles):
-            executor.submit(download, tile, idx)
+        futures = [executor.submit(download, tile, idx)
+                   for idx, tile in enumerate(all_tiles)]
+
+    print([future.result() for future in futures])
 
 
 def get_tiles_generator(geometry: dict, zoomlevel: int):
