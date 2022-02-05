@@ -82,14 +82,12 @@ def main():
                 data = urllib.request.urlopen(url, timeout=args["timeout"])
                 break
             except urllib.error.HTTPError as e:
-                print(str(e.code) + " error, skipping... :" + url)
-                break
+                raise e
             except Exception as e:
                 if str(e.args) == "(timeout('_ssl.c:1091: The handshake operation timed out'),)":
                     print("timeout, retrying... :" + url)
                 else:
-                    print(str(e.args) + " skipping... :" + url)
-                    break
+                    raise e
 
         if data is not None:
             with open(write_filepath, mode='wb') as f:
@@ -103,7 +101,15 @@ def main():
         futures = [executor.submit(download, tile, idx)
                    for idx, tile in enumerate(all_tiles)]
 
-    print([future.result() for future in futures])
+    results = [future.exception() for future in futures]
+    errors = list(map(str, filter(lambda val: val is not None, results)))
+    if len(errors) == 0:
+        print("no error occurs.")
+    else:
+        print("\n".join(errors))
+        print(str(len(errors)) + " errors occured.")
+
+    print("finished")
 
 
 def get_tiles_generator(geometry: dict, zoomlevel: int):
