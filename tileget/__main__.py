@@ -16,7 +16,8 @@ def get_args():
     parser.add_argument('tileurl', help='xyz-tile url')
     parser.add_argument('output_dir', help='output dir')
     parser.add_argument('--extent',
-                        help='min_lon min_lat max_lon max_lat, whitespace delimited', nargs=4)
+                        help='min_lon min_lat max_lon max_lat, whitespace delimited',
+                        nargs=4)
     parser.add_argument('--geojson')
     parser.add_argument('--minzoom', default="0")
     parser.add_argument('--maxzoom', default="16")
