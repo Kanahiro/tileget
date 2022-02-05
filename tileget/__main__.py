@@ -2,10 +2,11 @@ import os
 import argparse
 import math
 import itertools
-import requests
 import time
+import urllib.request
+import socket
+from concurrent.futures import ThreadPoolExecutor
 
-import tqdm
 import tiletanic
 import shapely
 
@@ -17,13 +18,36 @@ def get_args():
     parser.add_argument('--extent',
                         help='min_lon min_lat max_lon max_lat, whitespace delimited', nargs=4)
     parser.add_argument('--geojson')
-    parser.add_argument('--minzoom', default=0)
-    parser.add_argument('--maxzoom', default=16)
-    parser.add_argument('--header')
-    parser.add_argument('--interval', default=500)
-    parser.add_argument(
-        '--overwrite', help='overwrite existing files', action='store_true')
-    return parser.parse_args()
+    parser.add_argument('--minzoom', default="0")
+    parser.add_argument('--maxzoom', default="16")
+    parser.add_argument('--interval', default="500")
+    parser.add_argument('--overwrite',
+                        help='overwrite existing files',
+                        action='store_true')
+    parser.add_argument('--timeout', default="5")
+    parser.add_argument('--parallel', default="1")
+    args = parser.parse_args()
+
+    verified_args = {
+        "tileurl": args.tileurl,
+        "output_dir": args.output_dir,
+        "extent": None,
+        "geojson": None,
+        "minzoom": int(args.minzoom),
+        "maxzoom": int(args.maxzoom),
+        "interval": int(args.interval),
+        "overwrite": args.overwrite,
+        "timeout": int(args.timeout),
+        "parallel": int(args.parallel)
+    }
+    if args.extent is not None:
+        verified_args["extent"] = tuple(map(float, args.extent))
+
+    if args.geojson is not None:
+        # TODO: load geojson-geometry
+        verified_args["geojson"] = None
+
+    return verified_args
 
 
 def lonlat_to_webmercator(lonlat: list):
@@ -32,31 +56,51 @@ def lonlat_to_webmercator(lonlat: list):
 
 def main():
     args = get_args()
-    extent = tuple(map(float, args.extent))
-    geometry = get_geometry_as_3857(extent)
+    geometry = get_geometry_as_3857(args["extent"])
     all_tiles = tuple(itertools.chain.from_iterable((get_tiles_generator(
-        geometry, zoom) for zoom in range(int(args.minzoom), int(args.maxzoom) + 1))))
+        geometry, zoom) for zoom in range(args["minzoom"], args["maxzoom"] + 1))))
 
-    for tile in tqdm.tqdm(all_tiles):
-        ext = args.tileurl.split(".")[-1]
-        write_dir = os.path.join(args.output_dir, str(tile[2]), str(tile[0]))
+    def download(tile, idx):
+        ext = args["tileurl"].split(".")[-1]
+        write_dir = os.path.join(
+            args["output_dir"], str(tile[2]), str(tile[0]))
         write_filepath = os.path.join(write_dir, str(tile[1]) + "." + ext)
 
-        if os.path.exists(write_filepath) and args.overwrite == False:
-            continue
+        if os.path.exists(write_filepath) and args["overwrite"] == False:
+            return
 
         os.makedirs(write_dir, exist_ok=True)
 
-        url = args.tileurl.replace(
+        url = args["tileurl"].replace(
             r"{x}", str(tile[0])).replace(
             r"{y}", str(tile[1])).replace(
             r"{z}", str(tile[2]))
-        data = requests.get(url).content
 
-        with open(write_filepath, mode='wb') as f:
-            f.write(data)
+        data = None
+        while(True):
+            try:
+                data = urllib.request.urlopen(url, timeout=args["timeout"])
+                break
+            except socket.timeout:
+                print("timeout, retrying... :" + url)
+            except urllib.error.HTTPError as e:
+                print(e.code + " error, skipping... :" + url)
+                break
+            except Exception as e:
+                print(e.args + " skipping... :" + url)
+                break
 
-        time.sleep(int(args.interval) / 1000)
+        if data is not None:
+            with open(write_filepath, mode='wb') as f:
+                f.write(data.read())
+            time.sleep(args["interval"] / 1000)
+
+        if idx % 10 == 0:
+            print(str(idx + 1) + "/" + str(len(all_tiles)))
+
+    with ThreadPoolExecutor(max_workers=args["parallel"]) as executor:
+        for idx, tile in enumerate(all_tiles):
+            executor.submit(download, tile, idx)
 
 
 def get_tiles_generator(geometry: dict, zoomlevel: int):
