@@ -18,7 +18,8 @@ def get_args():
     parser.add_argument('--extent',
                         help='min_lon min_lat max_lon max_lat, whitespace delimited',
                         nargs=4)
-    parser.add_argument('--geojson')
+    parser.add_argument('--geojson',
+                        help="relative path to geojson which is Feature or FeatureCollection with geometry in EPSG:3857")
     parser.add_argument('--minzoom', default="0")
     parser.add_argument('--maxzoom', default="16")
     parser.add_argument('--interval', default="500")
