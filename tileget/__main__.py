@@ -4,7 +4,7 @@ import math
 import itertools
 import time
 import urllib.request
-import socket
+import json
 from concurrent.futures import ThreadPoolExecutor
 
 import tiletanic
@@ -41,12 +41,15 @@ def get_args():
         "timeout": int(args.timeout),
         "parallel": int(args.parallel)
     }
+
+    if args.extent is None and args.geojson is None:
+        raise Exception("extent or geojson must be input")
+
     if args.extent is not None:
         verified_args["extent"] = tuple(map(float, args.extent))
 
     if args.geojson is not None:
-        # TODO: load geojson-geometry
-        verified_args["geojson"] = None
+        verified_args["geojson"] = args.geojson
 
     return verified_args
 
@@ -57,9 +60,23 @@ def lonlat_to_webmercator(lonlat: list):
 
 def main():
     args = get_args()
-    geometry = get_geometry_as_3857(args["extent"])
-    all_tiles = tuple(itertools.chain.from_iterable((get_tiles_generator(
-        geometry, zoom) for zoom in range(args["minzoom"], args["maxzoom"] + 1))))
+
+    if args["extent"] is not None:
+        geometries = (get_geometry_as_3857(args["extent"]))
+    elif args["geojson"] is not None:
+        with open(args["geojson"], mode='r') as f:
+            geojson = json.load(f)
+        if geojson.get("features") is None:
+            geometries = (geojson["geometry"])
+        else:
+            geometries = tuple(
+                map(lambda feature: feature["geometry"], geojson["features"]))
+
+    all_tiles = []
+    for geom in geometries:
+        all_tiles += tuple(itertools.chain.from_iterable((get_tiles_generator(
+            geom, zoom) for zoom in range(args["minzoom"], args["maxzoom"] + 1))))
+    all_tiles = tuple(set(all_tiles))
 
     def download(tile, idx):
         ext = args["tileurl"].split(".")[-1]
@@ -83,12 +100,12 @@ def main():
                 data = urllib.request.urlopen(url, timeout=args["timeout"])
                 break
             except urllib.error.HTTPError as e:
-                raise e
+                raise Exception(str(e) + ":" + url)
             except Exception as e:
                 if str(e.args) == "(timeout('_ssl.c:1091: The handshake operation timed out'),)":
                     print("timeout, retrying... :" + url)
                 else:
-                    raise e
+                    raise Exception(str(e) + ":" + url)
 
         if data is not None:
             with open(write_filepath, mode='wb') as f:
