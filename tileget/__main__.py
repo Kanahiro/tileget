@@ -13,7 +13,8 @@ import shapely
 
 def get_args():
     parser = argparse.ArgumentParser(description='xyz-tile download tool')
-    parser.add_argument('tileurl', help='xyz-tile url')
+    parser.add_argument('tileurl',
+                        help=r'xyz-tile url in {z}/{x}/{y} template')
     parser.add_argument('output_dir', help='output dir')
     parser.add_argument('--extent',
                         help='min_lon min_lat max_lon max_lat, whitespace delimited',
@@ -22,12 +23,15 @@ def get_args():
                         help="relative path to geojson which is Feature or FeatureCollection with geometry in EPSG:3857")
     parser.add_argument('--minzoom', default="0")
     parser.add_argument('--maxzoom', default="16")
-    parser.add_argument('--interval', default="500")
+    parser.add_argument('--interval', default="500",
+                        help="time taken after each-request, set as miliseconds in interger")
     parser.add_argument('--overwrite',
                         help='overwrite existing files',
                         action='store_true')
-    parser.add_argument('--timeout', default="5")
-    parser.add_argument('--parallel', default="1")
+    parser.add_argument('--timeout', default="5",
+                        help="wait response until this value, set as seconds in integer")
+    parser.add_argument('--parallel', default="1",
+                        help='num of parallel requests')
     args = parser.parse_args()
 
     verified_args = {
@@ -63,12 +67,12 @@ def main():
     args = get_args()
 
     if args["extent"] is not None:
-        geometries = (get_geometry_as_3857(args["extent"]))
+        geometries = (get_geometry_as_3857(args["extent"]),)
     elif args["geojson"] is not None:
         with open(args["geojson"], mode='r') as f:
             geojson = json.load(f)
         if geojson.get("features") is None:
-            geometries = (geojson["geometry"])
+            geometries = (geojson["geometry"],)
         else:
             geometries = tuple(
                 map(lambda feature: feature["geometry"], geojson["features"]))
