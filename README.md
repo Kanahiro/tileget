@@ -31,11 +31,9 @@ optional arguments:
                         FeatureCollection with geometry in EPSG:3857
   --minzoom MINZOOM
   --maxzoom MAXZOOM
-  --interval INTERVAL   time taken after each-request, set as miliseconds in
-                        interger
+  --interval INTERVAL   time taken after each-request, set as interger in miliseconds
   --overwrite           overwrite existing files
-  --timeout TIMEOUT     wait response until this value, set as seconds in
-                        integer
+  --timeout TIMEOUT     wait response until this value, set as interger in seconds
   --parallel PARALLEL   num of parallel requests
 ```
 
