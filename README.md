@@ -27,17 +27,19 @@ optional arguments:
   -h, --help            show this help message and exit
   --extent EXTENT EXTENT EXTENT EXTENT
                         min_lon min_lat max_lon max_lat, whitespace delimited
-  --geojson GEOJSON     relative path to geojson which is Feature or
-                        FeatureCollection with geometry in EPSG:3857
-  --minzoom MINZOOM
-  --maxzoom MAXZOOM
-  --interval INTERVAL   time taken after each-request, set as interger in miliseconds
+  --geojson GEOJSON     path to geojson which is Feature or FeatureCollection
+                        with geometry in EPSG:3857
+  --minzoom MINZOOM     default to 0
+  --maxzoom MAXZOOM     default to 16
+  --interval INTERVAL   time taken after each-request, set as miliseconds in
+                        interger, default to 500
   --overwrite           overwrite existing files
-  --timeout TIMEOUT     wait response until this value, set as interger in seconds
+  --timeout TIMEOUT     wait response until this value, set as seconds in
+                        integer, default to 5
   --parallel PARALLEL   num of parallel requests
 ```
 
-### exapmles
+### examples
 
 #### get tiles in extent [141.23 40.56 142.45 43.78] and in zoomlevels 0-12
 
@@ -46,3 +48,8 @@ optional arguments:
 tileget https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg ./output_dir --extent 141.23 40.56 142.45 43.78 --maxzoom 12
 ```
 
+#### parallel download - 4 threads, zoomlevels 5-13
+
+```sh
+tileget https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg ./output_dir --extent 141.23 40.56 142.45 43.78 --minzoom 5 --maxzoom 13 --parallel 4
+```

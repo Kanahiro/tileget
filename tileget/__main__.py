@@ -20,16 +20,16 @@ def get_args():
                         help='min_lon min_lat max_lon max_lat, whitespace delimited',
                         nargs=4)
     parser.add_argument('--geojson',
-                        help="relative path to geojson which is Feature or FeatureCollection with geometry in EPSG:3857")
-    parser.add_argument('--minzoom', default="0")
-    parser.add_argument('--maxzoom', default="16")
+                        help="path to geojson which is Feature or FeatureCollection with geometry in EPSG:3857")
+    parser.add_argument('--minzoom', default="0", help="default to 0")
+    parser.add_argument('--maxzoom', default="16", help="default to 16")
     parser.add_argument('--interval', default="500",
-                        help="time taken after each-request, set as miliseconds in interger")
+                        help="time taken after each-request, set as miliseconds in interger, default to 500")
     parser.add_argument('--overwrite',
                         help='overwrite existing files',
                         action='store_true')
     parser.add_argument('--timeout', default="5",
-                        help="wait response until this value, set as seconds in integer")
+                        help="wait response until this value, set as seconds in integer, default to 5")
     parser.add_argument('--parallel', default="1",
                         help='num of parallel requests')
     args = parser.parse_args()
