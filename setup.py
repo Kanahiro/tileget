@@ -7,7 +7,7 @@ def _requires_from_file(filename):
 
 setup(
     name="tileget",
-    version="0.1.0",
+    version="0.1.1",
     description="Tile download utility - easily download xyz-tile data",
     author="Kanahiro Iguchi",
     license="MIT",
