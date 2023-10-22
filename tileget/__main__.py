@@ -39,6 +39,7 @@ def get_args():
         help="wait response until this value, set as seconds in integer, default to 5",
     )
     parser.add_argument("--parallel", default="1", help="num of parallel requests")
+    parser.add_argument("--tms", help="if set, parse z/x/y as TMS", action="store_true")
     args = parser.parse_args()
 
     verified_args = {
@@ -52,6 +53,7 @@ def get_args():
         "overwrite": args.overwrite,
         "timeout": int(args.timeout),
         "parallel": int(args.parallel),
+        "tms": args.tms,
     }
 
     if args.extent is None and args.geojson is None:
@@ -128,7 +130,8 @@ def main():
         write_dir = os.path.join(args["output_dir"], str(tile[2]), str(tile[0]))
         write_filepath = os.path.join(write_dir, str(tile[1]) + "." + ext)
 
-        if os.path.exists(write_filepath) and args["overwrite"] == False:
+        if not (os.path.exists(write_filepath) and args["overwrite"]):
+            # skip if already exists when not-overwrite mode
             return
 
         url = (
@@ -160,11 +163,15 @@ def main():
                 f.write(data.read())
             time.sleep(args["interval"] / 1000)
 
+    tilescheme = (
+        tiletanic.tileschemes.WebMercatorBL()
+        if args["tms"]
+        else tiletanic.tileschemes.WebMercator()
+    )
+
     with ThreadPoolExecutor(max_workers=args["parallel"]) as executor:
         for zoom in range(args["minzoom"], args["maxzoom"] + 1):
-            generator = tiletanic.tilecover.cover_geometry(
-                tiletanic.tileschemes.WebMercator(), geometry, zoom
-            )
+            generator = tiletanic.tilecover.cover_geometry(tilescheme, geometry, zoom)
             for tile in generator:
                 future = executor.submit(download, tile)
                 if future.exception() is not None:
