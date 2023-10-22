@@ -1,6 +1,5 @@
 import os
 import argparse
-import math
 import time
 import urllib.request
 import json
@@ -8,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import tiletanic
 import shapely
+from pyproj import Transformer
 
 
 def get_args():
@@ -21,7 +21,7 @@ def get_args():
     )
     parser.add_argument(
         "--geojson",
-        help="path to geojson which is Feature or FeatureCollection with geometry in EPSG:3857",
+        help="path to geojson file of Feature or FeatureCollection",
     )
     parser.add_argument("--minzoom", default="0", help="default to 0")
     parser.add_argument("--maxzoom", default="16", help="default to 16")
@@ -39,6 +39,7 @@ def get_args():
         help="wait response until this value, set as seconds in integer, default to 5",
     )
     parser.add_argument("--parallel", default="1", help="num of parallel requests")
+    parser.add_argument("--tms", help="if set, parse z/x/y as TMS", action="store_true")
     args = parser.parse_args()
 
     verified_args = {
@@ -52,6 +53,7 @@ def get_args():
         "overwrite": args.overwrite,
         "timeout": int(args.timeout),
         "parallel": int(args.parallel),
+        "tms": args.tms,
     }
 
     if args.extent is None and args.geojson is None:
@@ -66,51 +68,24 @@ def get_args():
     return verified_args
 
 
-def lonlat_to_webmercator(lonlat: list):
-    return (
-        lonlat[0] * 20037508.34 / 180,
-        math.log(math.tan((90 + lonlat[1]) * math.pi / 360))
-        / (math.pi / 180)
-        * 20037508.34
-        / 180,
-    )
-
-
-def get_geometry_as_3857(extent: list) -> dict:
-    """
-    returns GeoJSON Polygon geometry dict
-    extent must be latitudes and longitudes and reprojected to WebMercator EPSG:3857
-
-    Args:
-        extent (list): [min_lon, min_lat, max_lon, max_lat]
-
-    Returns:
-        dict: Polygon geometry
-    """
-    return {
-        "type": "Polygon",
-        "coordinates": (
-            tuple(
-                map(
-                    lonlat_to_webmercator,
-                    (
-                        (extent[0], extent[1]),
-                        (extent[2], extent[1]),
-                        (extent[2], extent[3]),
-                        (extent[0], extent[3]),
-                        (extent[0], extent[1]),
-                    ),
-                )
-            ),
-        ),
-    }
-
-
 def main():
     args = get_args()
 
     if args["extent"] is not None:
-        geometry = shapely.geometry.shape(get_geometry_as_3857(args["extent"]))
+        geometry = shapely.geometry.shape(
+            {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        (args["extent"][0], args["extent"][1]),
+                        (args["extent"][2], args["extent"][1]),
+                        (args["extent"][2], args["extent"][3]),
+                        (args["extent"][0], args["extent"][3]),
+                        (args["extent"][0], args["extent"][1]),
+                    ],
+                ],
+            }
+        )
     elif args["geojson"] is not None:
         with open(args["geojson"], mode="r") as f:
             geojson = json.load(f)
@@ -123,12 +98,17 @@ def main():
             ]
             geometry = shapely.ops.unary_union(geometries)
 
+    # tiletanic accept only EPSG:3857 shape, convert
+    transformer = Transformer.from_crs(4326, 3857, always_xy=True)
+    geom_3857 = shapely.ops.transform(transformer.transform, geometry)
+
     def download(tile):
         ext = args["tileurl"].split(".")[-1]
         write_dir = os.path.join(args["output_dir"], str(tile[2]), str(tile[0]))
         write_filepath = os.path.join(write_dir, str(tile[1]) + "." + ext)
 
-        if os.path.exists(write_filepath) and args["overwrite"] == False:
+        if os.path.exists(write_filepath) and not args["overwrite"]:
+            # skip if already exists when not-overwrite mode
             return
 
         url = (
@@ -160,11 +140,15 @@ def main():
                 f.write(data.read())
             time.sleep(args["interval"] / 1000)
 
+    tilescheme = (
+        tiletanic.tileschemes.WebMercatorBL()
+        if args["tms"]
+        else tiletanic.tileschemes.WebMercator()
+    )
+
     with ThreadPoolExecutor(max_workers=args["parallel"]) as executor:
         for zoom in range(args["minzoom"], args["maxzoom"] + 1):
-            generator = tiletanic.tilecover.cover_geometry(
-                tiletanic.tileschemes.WebMercator(), geometry, zoom
-            )
+            generator = tiletanic.tilecover.cover_geometry(tilescheme, geom_3857, zoom)
             for tile in generator:
                 future = executor.submit(download, tile)
                 if future.exception() is not None:
