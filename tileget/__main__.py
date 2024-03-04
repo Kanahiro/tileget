@@ -120,6 +120,7 @@ def main():
             .replace(r"{y}", str(tile[1]))
             .replace(r"{z}", str(tile[2]))
         )
+        print("downloading: " + url)
 
         data = None
         while True:
