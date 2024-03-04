@@ -27,8 +27,7 @@ optional arguments:
   -h, --help            show this help message and exit
   --extent EXTENT EXTENT EXTENT EXTENT
                         min_lon min_lat max_lon max_lat, whitespace delimited
-  --geojson GEOJSON     path to geojson which is Feature or FeatureCollection
-                        with geometry in EPSG:3857
+  --geojson GEOJSON     path to geojson file to get tile covered by features
   --minzoom MINZOOM     default to 0
   --maxzoom MAXZOOM     default to 16
   --interval INTERVAL   time taken after each-request, set as miliseconds in
