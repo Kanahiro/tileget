@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tileget"
-version = "0.3.0"
+version = "0.3.1"
 description = "Tile download utility - easily download xyz-tile data"
 authors = ["Kanahiro <mediterranean1769@gmail.com>"]
 license = "MIT"
