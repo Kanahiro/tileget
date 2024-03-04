@@ -103,9 +103,9 @@ def main():
     geom_3857 = shapely.ops.transform(transformer.transform, geometry)
 
     def download(tile):
-        basepath = args["tileurl"].split("/")[-1]  # ?foo=bar&z={z}.ext
-        segments = basepath.split(".")
-        ext = "." + segments[-1] if len(segments) > 1 else ""
+        # detect file extension from tileurl
+        # tileurl = https://path/to/{z}/{x}/{y}.ext?foo=bar...&hoge=fuga.json
+        ext = os.path.splitext(args["tileurl"].split("?")[0])[-1]
 
         write_dir = os.path.join(args["output_dir"], str(tile[2]), str(tile[0]))
         write_filepath = os.path.join(write_dir, str(tile[1]) + ext)
